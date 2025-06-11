@@ -25,6 +25,7 @@ class CloudFlareIPManager:
     def get_optimized_ips():
         try:
             response = requests.get('https://api.vvhan.com/tool/cf_ip', headers={'Content-Type': 'application/json'})
+            print(response.json())
             if response.status_code != 200 or not response.json().get("success"):
                 return None
             
