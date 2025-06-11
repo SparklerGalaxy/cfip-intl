@@ -13,6 +13,7 @@ DOMAINS = json.loads(os.environ["DOMAINS"])
 SECRETID = os.environ["SECRETID"]
 SECRETKEY = os.environ["SECRETKEY"]
 AFFECT_NUM = 2
+#DNS服务商 如果使用DNSPod改为1 如果使用阿里云解析改成2  如果使用华为云解析改成3
 DNS_SERVER = 2
 REGION_HW = 'cn-east-3'
 REGION_ALI = 'cn-hongkong'

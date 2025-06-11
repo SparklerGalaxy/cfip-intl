@@ -26,17 +26,15 @@ jobs:
     - name: Update IPv4 Records
       if: env.ENABLE_IPV4 == 'true' && !cancelled()
       env:
-        CF_API_KEY: ${{ secrets.KEY }}
-        DP_SECRET_ID: ${{ secrets.SECRETID }}
-        DP_SECRET_KEY: ${{ secrets.SECRETKEY }}
+        SECRETID: ${{ secrets.SECRETID }}
+        SECRETKEY: ${{ secrets.SECRETKEY }}
         DOMAINS: ${{ secrets.DOMAINS }}
       run: python cf2dns.py A
 
     - name: Update IPv6 Records
       if: env.ENABLE_IPV6 == 'true' && !cancelled()
       env:
-        CF_API_KEY: ${{ secrets.KEY }}
-        DP_SECRET_ID: ${{ secrets.SECRETID }}
-        DP_SECRET_KEY: ${{ secrets.SECRETKEY }}
+        SECRETID: ${{ secrets.SECRETID }}
+        SECRETKEY: ${{ secrets.SECRETKEY }}
         DOMAINS: ${{ secrets.DOMAINSV6 }}
       run: python cf2dns.py AAAA
