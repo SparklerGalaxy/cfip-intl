@@ -104,9 +104,16 @@ class DNSUpdater:
             print(f"CHANGE DNS ERROR: ----Time: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}----MESSAGE: {traceback.format_exc()}")
 
 def main():
-    cloud = AliApi(SECRETID, SECRETKEY, REGION_ALI)
-    updater = DNSUpdater(cloud)
-    updater.update_dns_records()
+    cloud = None
+    if DNS_SERVER == 1:
+        cloud = QcloudApiv3(SECRETID, SECRETKEY)
+    elif DNS_SERVER == 2:
+        cloud = AliApi(SECRETID, SECRETKEY, REGION_ALI)
+    elif DNS_SERVER == 3:
+        cloud = HuaWeiApi(SECRETID, SECRETKEY, REGION_HW)
+    if cloud:
+        updater = DNSUpdater(cloud)
+        updater.update_dns_records()
 
 if __name__ == '__main__':
     main()

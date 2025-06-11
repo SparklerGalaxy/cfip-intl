@@ -29,7 +29,7 @@ jobs:
         SECRETID: ${{ secrets.SECRETID }}
         SECRETKEY: ${{ secrets.SECRETKEY }}
         DOMAINS: ${{ secrets.DOMAINS }}
-      run: python cf2dns.py A
+      run: python cf2dns_actions.py A
 
     - name: Update IPv6 Records
       if: env.ENABLE_IPV6 == 'true' && !cancelled()
@@ -37,4 +37,4 @@ jobs:
         SECRETID: ${{ secrets.SECRETID }}
         SECRETKEY: ${{ secrets.SECRETKEY }}
         DOMAINS: ${{ secrets.DOMAINSV6 }}
-      run: python cf2dns.py AAAA
+      run: python cf2dns_actions.py AAAA
