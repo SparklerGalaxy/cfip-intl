@@ -35,7 +35,7 @@ class CloudFlareIPManager:
             ips = {}
             for carrier in ["CM", "CU", "CT"]:
                 if carrier in data:
-                    sorted_ips = sorted(data[carrier], key=lambda x: (-x["speed"], x["latency"]))
+                    sorted_ips = sorted(data[carrier], key=lambda x: (x["latency"], -x["speed"]))
                     ips[carrier] = [{"ip": ip["ip"]} for ip in sorted_ips[:3]]
             return {"info": ips}
         except Exception:
