@@ -1,0 +1,42 @@
+name: 'DNS Sync Bot'
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '*/15 * * * *'
+
+env:
+  ENABLE_IPV4: true
+  ENABLE_IPV6: true
+
+jobs:
+  sync-dns:
+    name: Sync DNS Records
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt --quiet
+
+    - name: Update IPv4 Records
+      if: env.ENABLE_IPV4 == 'true' && !cancelled()
+      env:
+        CF_API_KEY: ${{ secrets.KEY }}
+        DP_SECRET_ID: ${{ secrets.SECRETID }}
+        DP_SECRET_KEY: ${{ secrets.SECRETKEY }}
+        DOMAINS: ${{ secrets.DOMAINS }}
+      run: python cf2dns.py A
+
+    - name: Update IPv6 Records
+      if: env.ENABLE_IPV6 == 'true' && !cancelled()
+      env:
+        CF_API_KEY: ${{ secrets.KEY }}
+        DP_SECRET_ID: ${{ secrets.SECRETID }}
+        DP_SECRET_KEY: ${{ secrets.SECRETKEY }}
+        DOMAINS: ${{ secrets.DOMAINSV6 }}
+      run: python cf2dns.py AAAA
