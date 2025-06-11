@@ -7,7 +7,7 @@ on:
 
 env:
   ENABLE_IPV4: true
-  ENABLE_IPV6: true
+  ENABLE_IPV6: false
 
 jobs:
   sync-dns:
