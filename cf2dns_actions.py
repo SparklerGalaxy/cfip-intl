@@ -95,11 +95,11 @@ class DNSUpdater:
 
                     categorized = self._process_records(ret["data"]["records"])
                         for line in lines:
-                        self._handle_dns_change(
-                            domain, sub_domain, line,
-                            categorized.get(line, []),
-                            cf_ips["info"].get(line, []).copy()
-                        )
+                            self._handle_dns_change(
+                                domain, sub_domain, line,
+                                categorized.get(line, []),
+                                cf_ips["info"].get(line, []).copy()
+                            )
         except Exception:
             print(f"CHANGE DNS ERROR: ----Time: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}----MESSAGE: {traceback.format_exc()}")
 
