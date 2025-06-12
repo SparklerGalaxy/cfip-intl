@@ -53,6 +53,7 @@ class DNSUpdater:
         categorized = {"CM": [], "CU": [], "CT": [], "AB": [], "DEF": []}
         for record in records:
             line = record["line"]
+            print(f"_process_records Retrieved records: {record}")
             if line in self.lines_map.values():
                 line_key = next(k for k, v in self.lines_map.items() if v == line)
                 categorized[line_key].append({
@@ -93,17 +94,12 @@ class DNSUpdater:
             for domain, sub_domains in DOMAINS.items():
                 for sub_domain, lines in sub_domains.items():
                     ret = self.cloud.get_record(domain, 100, sub_domain, RECORD_TYPE)
-
-                    print(f"Retrieved records: {ret}")
-                    print(f"Retrieved records: {ret.get('data', {})}")
                     print(f"Retrieved records: {ret.get('data', {}).get('records', [])}")
-
 
                     if DNS_SERVER == 1 and "Free" in ret["data"]["domain"]["grade"]:
                         global AFFECT_NUM
                         AFFECT_NUM = min(AFFECT_NUM, 2)
 
-                    categorized = self._process_records(ret["data"]["records"])
                     for line in lines:
                         self._handle_dns_change(
                             domain, sub_domain, line,
