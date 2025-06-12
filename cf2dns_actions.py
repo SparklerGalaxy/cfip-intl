@@ -9,11 +9,15 @@ from dns.aliyun import AliApi
 from dns.huawei import HuaWeiApi
 import sys
 
-DOMAINS = json.loads(os.environ["DOMAINS"])
-SECRETID = os.environ["SECRETID"]
-SECRETKEY = os.environ["SECRETKEY"]
+try:
+    DOMAINS = json.loads(os.environ["DOMAINS"])
+    SECRETID = os.environ["SECRETID"]
+    SECRETKEY = os.environ["SECRETKEY"]
+except KeyError as e:
+    print(f"Missing required environment variable: {e}")
+    sys.exit(1)
+
 AFFECT_NUM = 2
-#DNS服务商 如果使用DNSPod改为1 如果使用阿里云解析改成2  如果使用华为云解析改成3
 DNS_SERVER = 2
 REGION_HW = 'cn-east-3'
 TTL = 600
@@ -64,7 +68,7 @@ class DNSUpdater:
         for _ in range(abs(create_num)):
             if not candidate_ips:
                 break
-            cf_ip = candidate_ips.pop(random.randint(0, len(candidate_ips)-1))["ip"]
+            cf_ip = candidate_ips.pop(random.randint(0, len(candidate_ips)-1)["ip"]
             if any(cf_ip == r["value"] for r in current_records):
                 continue
 
