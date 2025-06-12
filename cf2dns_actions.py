@@ -93,7 +93,12 @@ class DNSUpdater:
             for domain, sub_domains in DOMAINS.items():
                 for sub_domain, lines in sub_domains.items():
                     ret = self.cloud.get_record(domain, 100, sub_domain, RECORD_TYPE)
+
                     print(f"Retrieved records: {ret}")
+                    print(f"Retrieved records: {ret["data"]}")
+                    print(f"Retrieved records: {ret["data"]["records"]}")
+
+
                     if DNS_SERVER == 1 and "Free" in ret["data"]["domain"]["grade"]:
                         global AFFECT_NUM
                         AFFECT_NUM = min(AFFECT_NUM, 2)
