@@ -70,26 +70,40 @@ class DNSUpdater:
         create_num = AFFECT_NUM - len(current_records)
         print(f"_handle_dns_change called with: domain={domain}, sub_domain={sub_domain}, line_key={line_key}, current_records={current_records}, candidate_ips={candidate_ips}, create_num={create_num}")
 
-        for _ in range(abs(create_num)):
+        used_ips = set(r["value"] for r in current_records)
+        new_ips = []
+
+        # ================= 新增逻辑 =================
+        if create_num > 0:
+            while create_num > 0 and candidate_ips:
+                cf_ip = candidate_ips.pop(random.randint(0, len(candidate_ips)-1))["ip"]
+                if cf_ip not in used_ips:
+                    new_ips.append(cf_ip)
+                    used_ips.add(cf_ip)
+                    create_num -= 1
+            
+            for ip in new_ips:
+                ret = self.cloud.create_record(domain, sub_domain, ip, RECORD_TYPE, line_name, TTL)
+                self._log_result(ret, domain, sub_domain, line_name, ip, "CREATE")
+
+        # ================= 修改逻辑 =================
+        for record in current_records:
             if not candidate_ips:
                 break
-            cf_ip = candidate_ips.pop(random.randint(0, len(candidate_ips)-1))["ip"]
-            ip_exists = False
-            for r in current_records:
-                if cf_ip == r["value"]:
-                    ip_exists = True
+                
+            cf_ip = None
+            while candidate_ips:
+                candidate = candidate_ips.pop(random.randint(0, len(candidate_ips)-1))
+                if candidate["ip"] not in used_ips:
+                    cf_ip = candidate["ip"]
+                    used_ips.add(cf_ip)
                     break
-            if ip_exists:
-                continue
-
-            if create_num > 0:
-
-                ret = self.cloud.create_record(domain, sub_domain, cf_ip, RECORD_TYPE, line_name, TTL)
-            else:
-                record = current_records.pop(0)
-                ret = self.cloud.change_record(domain, record["recordId"], sub_domain, cf_ip, RECORD_TYPE, line_name, TTL)
-
-            self._log_result(ret, domain, sub_domain, line_name, cf_ip, "CREATE" if create_num > 0 else "CHANGE")
+            
+            if cf_ip:
+                ret = self.cloud.change_record(
+                    domain, record["recordId"], sub_domain, cf_ip, RECORD_TYPE, line_name, TTL
+                )
+                self._log_result(ret, domain, sub_domain, line_name, cf_ip, "CHANGE")
 
     def _log_result(self, ret, domain, sub_domain, line, value, action):
         status = "SUCCESS" if DNS_SERVER != 1 or ret.get("code", 1) == 0 else "ERROR"
