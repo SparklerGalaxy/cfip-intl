@@ -12,6 +12,7 @@ from alibabacloud_alidns20150109 import models as alidns_20150109_models
 from alibabacloud_tea_util import models as util_models
 from alibabacloud_tea_util.client import Client as UtilClient
 
+
 rc_format = 'json'
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -24,13 +25,20 @@ class AliApi():
 
     def create_client(self) -> Alidns20150109Client:
         try:
-            credential = CredentialClient(self.access_key_id, self.access_key_secret)
+            credential  = CredentialClient(
+                # 凭证类型。
+                type='access_key',
+                # 设置为AccessKey ID值。
+                access_key_id=self.access_key_id,
+                # 设置为AccessKey Secret值。
+                access_key_secret=self.access_key_secret,
+            )
             config = open_api_models.Config(
                 credential=credential
             )
-            config.endpoint = 'alidns.cn-hangzhou.aliyuncs.com'
+            config.endpoint = f'alidns.cn-hongkong.aliyuncs.com'
             logging.info("Client created successfully")
-            return Alidns20150109Client(config)
+            return Alidns20150109Client(credential_config)
         except Exception as e:
             logging.error(f"Failed to create client: {str(e)}")
             raise
