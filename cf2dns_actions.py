@@ -68,7 +68,7 @@ class DNSUpdater:
         for _ in range(abs(create_num)):
             if not candidate_ips:
                 break
-            cf_ip = candidate_ips.pop(random.randint(0, len(candidate_ips)-1)["ip"]
+            cf_ip = candidate_ips.pop(random.randint(0, len(candidate_ips)-1))["ip"]
             if any(cf_ip == r["value"] for r in current_records):
                 continue
 
