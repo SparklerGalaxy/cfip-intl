@@ -11,6 +11,14 @@ from aliyunsdkalidns.request.v20150109 import UpdateDomainRecordRequest
 from aliyunsdkalidns.request.v20150109 import AddDomainRecordRequest
 
 
+from alibabacloud_alidns20150109.client import Client as Alidns20150109Client
+from alibabacloud_credentials.client import Client as CredentialClient
+from alibabacloud_tea_openapi import models as open_api_models
+from alibabacloud_alidns20150109 import models as alidns_20150109_models
+from alibabacloud_tea_util import models as util_models
+from alibabacloud_tea_util.client import Client as UtilClient
+
+
 rc_format = 'json'
 class AliApi():
     def __init__(self, ACCESSID, SECRETKEY, REGION='cn-hongkong'):
@@ -86,4 +94,3 @@ class AliApi():
         result = clt.do_action(request).decode('utf-8')
         result = json.JSONDecoder().decode(result)
         return result
-
