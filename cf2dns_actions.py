@@ -95,8 +95,8 @@ class DNSUpdater:
                     ret = self.cloud.get_record(domain, 100, sub_domain, RECORD_TYPE)
 
                     print(f"Retrieved records: {ret}")
-                    print(f"Retrieved records: {ret["data"]}")
-                    print(f"Retrieved records: {ret["data"]["records"]}")
+                    print(f"Retrieved records: {ret.get('data', {})}")
+                    print(f"Retrieved records: {ret.get('data', {}).get('records', [])}")
 
 
                     if DNS_SERVER == 1 and "Free" in ret["data"]["domain"]["grade"]:
