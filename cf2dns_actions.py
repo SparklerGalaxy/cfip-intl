@@ -28,7 +28,7 @@ class CloudFlareIPManager:
     def get_optimized_ips():
         try:
             response = requests.get('https://api.vvhan.com/tool/cf_ip', headers={'Content-Type': 'application/json'})
-            print(response.json())
+            
             if response.status_code != 200 or not response.json().get("success"):
                 return None
             
@@ -40,7 +40,9 @@ class CloudFlareIPManager:
                 if carrier in data:
                     sorted_ips = sorted(data[carrier], key=lambda x: (-x["speed"], x["latency"]))
                     ips[carrier] = [{"ip": ip["ip"]} for ip in sorted_ips[:3]]
-            return {"info": ips}
+            result = {"info": ips}
+            print(f"Returning optimized IPs: {result}")
+            return result
         except Exception:
             return None
 
