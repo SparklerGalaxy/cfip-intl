@@ -64,18 +64,26 @@ class DNSUpdater:
                 })
         return categorized
 
+    #    self._handle_dns_change(domain, sub_domain, line, categorized.get(line, []), cf_ips["info"].get(line, []).copy())
     def _handle_dns_change(self, domain, sub_domain, line_key, current_records, candidate_ips):
         line_name = self.lines_map[line_key]
         create_num = AFFECT_NUM - len(current_records)
+        print(f"_handle_dns_change called with: domain={domain}, sub_domain={sub_domain}, line_key={line_key}, current_records={current_records}, candidate_ips={candidate_ips}, create_num={create_num}")
 
         for _ in range(abs(create_num)):
             if not candidate_ips:
                 break
             cf_ip = candidate_ips.pop(random.randint(0, len(candidate_ips)-1))["ip"]
-            if any(cf_ip == r["value"] for r in current_records):
+            ip_exists = False
+            for r in current_records:
+                if cf_ip == r["value"]:
+                    ip_exists = True
+                    break
+            if ip_exists:
                 continue
 
             if create_num > 0:
+
                 ret = self.cloud.create_record(domain, sub_domain, cf_ip, RECORD_TYPE, line_name, TTL)
             else:
                 record = current_records.pop(0)
@@ -107,11 +115,7 @@ class DNSUpdater:
                     print(f"update_dns_records categorized: {categorized}")
                     for line in lines:
                         print(f"update_dns_records line: {line}")
-                        self._handle_dns_change(
-                            domain, sub_domain, line,
-                            categorized.get(line, []),
-                            cf_ips["info"].get(line, []).copy()
-                        )
+                        self._handle_dns_change(domain, sub_domain, line, categorized.get(line, []), cf_ips["info"].get(line, []).copy())
         except Exception:
             print(f"CHANGE DNS ERROR: ----Time: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}----MESSAGE: {traceback.format_exc()}")
 
