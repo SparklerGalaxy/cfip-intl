@@ -4,21 +4,12 @@
 # Reference: https://help.aliyun.com/document_detail/29776.html?spm=a2c4g.11186623.2.38.3fc33efexrOFkT
 # REGION: https://help.aliyun.com/document_detail/198326.html
 import json
-from aliyunsdkcore import client
-from aliyunsdkalidns.request.v20150109 import DescribeDomainRecordsRequest
-from aliyunsdkalidns.request.v20150109 import DeleteDomainRecordRequest
-from aliyunsdkalidns.request.v20150109 import UpdateDomainRecordRequest
-from aliyunsdkalidns.request.v20150109 import AddDomainRecordRequest
-
-
 from alibabacloud_alidns20150109.client import Client as Alidns20150109Client
 from alibabacloud_credentials.client import Client as CredentialClient
 from alibabacloud_tea_openapi import models as open_api_models
 from alibabacloud_alidns20150109 import models as alidns_20150109_models
 from alibabacloud_tea_util import models as util_models
 from alibabacloud_tea_util.client import Client as UtilClient
-
-
 rc_format = 'json'
 class AliApi():
     def __init__(self, ACCESSID, SECRETKEY, REGION='cn-hongkong'):
@@ -26,32 +17,41 @@ class AliApi():
         self.access_key_secret = SECRETKEY
         self.region = REGION
 
+    def create_client(self) -> Alidns20150109Client:
+        credential = CredentialClient(self.access_key_id, self.access_key_secret)
+        config = open_api_models.Config(
+            credential=credential,
+            region_id=self.region
+        )
+        config.endpoint = f'alidns.cn-hangzhou.aliyuncs.com'
+        return Alidns20150109Client(config)
+        
     def del_record(self, domain, record):
-        clt = client.AcsClient(self.access_key_id, self.access_key_secret, self.region)
-        request = DeleteDomainRecordRequest.DeleteDomainRecordRequest()
-        request.set_RecordId(record)
-        request.set_accept_format(rc_format)
-        result = clt.do_action(request).decode('utf-8')
-        result = json.JSONDecoder().decode(result)
-        return result
-
+        client = self.create_client()
+        delete_domain_record_request = alidns_20150109_models.DeleteDomainRecordRequest(
+            record_id=record
+        )
+        result = client.delete_domain_record(delete_domain_record_request)
+        return result.to_map()
     def get_record(self, domain, length, sub_domain, record_type):
-        clt = client.AcsClient(self.access_key_id, self.access_key_secret, self.region)
-        request = DescribeDomainRecordsRequest.DescribeDomainRecordsRequest()
-        request.set_DomainName(domain)
-        request.set_PageSize(length)
-        request.set_RRKeyWord(sub_domain)
-        request.set_Type(record_type)
-        request.set_accept_format(rc_format)
-        result = clt.do_action(request).decode('utf-8').replace('DomainRecords', 'data', 1).replace('Record', 'records', 1).replace('RecordId', 'id').replace('Value', 'value').replace('Line', 'line').replace('telecom', '电信').replace('unicom', '联通').replace('mobile', '移动').replace('oversea', '境外').replace('default', '默认')
-        result = json.JSONDecoder().decode(result)
+        client = self.create_client()
+        describe_domain_records_request = alidns_20150109_models.DescribeDomainRecordsRequest(
+            domain_name=domain,
+            page_size=length,
+            rrkey_word=sub_domain,
+            type=record_type
+        )
+        result = client.describe_domain_records(describe_domain_records_request)
+        result = result.to_map()
+        result['data'] = result.pop('DomainRecords')
+        result['data']['records'] = result['data'].pop('Record')
+        for record in result['data']['records']:
+            record['id'] = record.pop('RecordId')
+            record['line'] = record['Line'].replace('telecom', '电信').replace('unicom', '联通').replace('mobile', '移动').replace('oversea', '境外').replace('default', '默认')
         return result
 
     def create_record(self, domain, sub_domain, value, record_type, line, ttl):
-        clt = client.AcsClient(self.access_key_id, self.access_key_secret, self.region)
-        request = AddDomainRecordRequest.AddDomainRecordRequest()
-        request.set_DomainName(domain)
-        request.set_RR(sub_domain)
+        client = self.create_client()
         if line == "电信":
             line = "telecom"
         elif line == "联通":
@@ -62,20 +62,18 @@ class AliApi():
             line = "oversea"
         elif line == "默认":
             line = "default"
-        request.set_Line(line)
-        request.set_Type(record_type)
-        request.set_Value(value)
-        request.set_TTL(ttl)
-        request.set_accept_format(rc_format)
-        result = clt.do_action(request).decode('utf-8')
-        result = json.JSONDecoder().decode(result)
-        return result
-        
+        add_domain_record_request = alidns_20150109_models.AddDomainRecordRequest(
+            domain_name=domain,
+            rr=sub_domain,
+            type=record_type,
+            value=value,
+            line=line,
+            ttl=ttl
+        )
+        result = client.add_domain_record(add_domain_record_request)
+        return result.to_map()
     def change_record(self, domain, record_id, sub_domain, value, record_type, line, ttl):
-        clt = client.AcsClient(self.access_key_id, self.access_key_secret, self.region)
-        request = UpdateDomainRecordRequest.UpdateDomainRecordRequest()
-        request.set_RR(sub_domain)
-        request.set_RecordId(record_id)
+        client = self.create_client()
         if line == "电信":
             line = "telecom"
         elif line == "联通":
@@ -86,11 +84,13 @@ class AliApi():
             line = "oversea"
         elif line == "默认":
             line = "default"
-        request.set_Line(line)
-        request.set_Type(record_type)
-        request.set_Value(value)
-        request.set_TTL(ttl)
-        request.set_accept_format(rc_format)
-        result = clt.do_action(request).decode('utf-8')
-        result = json.JSONDecoder().decode(result)
-        return result
+        update_domain_record_request = alidns_20150109_models.UpdateDomainRecordRequest(
+            record_id=record_id,
+            rr=sub_domain,
+            type=record_type,
+            value=value,
+            line=line,
+            ttl=ttl
+        )
+        result = client.update_domain_record(update_domain_record_request)
+        return result.to_map()
