@@ -11,6 +11,7 @@ from alibabacloud_alidns20150109 import models as alidns_20150109_models
 from alibabacloud_tea_util import models as util_models
 from alibabacloud_tea_util.client import Client as UtilClient
 rc_format = 'json'
+
 class AliApi():
     def __init__(self, ACCESSID, SECRETKEY, REGION='cn-hongkong'):
         self.access_key_id = ACCESSID
@@ -33,6 +34,7 @@ class AliApi():
         )
         result = client.delete_domain_record(delete_domain_record_request)
         return result.to_map()
+
     def get_record(self, domain, length, sub_domain, record_type):
         client = self.create_client()
         describe_domain_records_request = alidns_20150109_models.DescribeDomainRecordsRequest(
@@ -72,6 +74,7 @@ class AliApi():
         )
         result = client.add_domain_record(add_domain_record_request)
         return result.to_map()
+
     def change_record(self, domain, record_id, sub_domain, value, record_type, line, ttl):
         client = self.create_client()
         if line == "电信":
