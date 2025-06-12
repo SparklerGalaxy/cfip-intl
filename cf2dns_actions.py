@@ -58,7 +58,7 @@ class DNSUpdater:
                 line_key = next(k for k, v in self.lines_map.items() if v == line)
                 categorized[line_key].append({
                     "recordId": record["id"],
-                    "value": record["value"]
+                    "value": record["Value"]
                 })
         return categorized
 
