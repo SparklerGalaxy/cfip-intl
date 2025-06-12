@@ -38,3 +38,4 @@ jobs:
         SECRETKEY: ${{ secrets.SECRETKEY }}
         DOMAINS: ${{ secrets.DOMAINSV6 }}
       run: python cf2dns_actions.py AAAA
+      
