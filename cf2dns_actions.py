@@ -16,7 +16,6 @@ AFFECT_NUM = 2
 #DNS服务商 如果使用DNSPod改为1 如果使用阿里云解析改成2  如果使用华为云解析改成3
 DNS_SERVER = 2
 REGION_HW = 'cn-east-3'
-REGION_ALI = 'cn-hongkong'
 TTL = 600
 RECORD_TYPE = sys.argv[1] if len(sys.argv) >= 2 else "A"
 
@@ -109,7 +108,7 @@ def main():
     if DNS_SERVER == 1:
         cloud = QcloudApiv3(SECRETID, SECRETKEY)
     elif DNS_SERVER == 2:
-        cloud = AliApi(SECRETID, SECRETKEY, REGION_ALI)
+        cloud = AliApi(SECRETID, SECRETKEY)
     elif DNS_SERVER == 3:
         cloud = HuaWeiApi(SECRETID, SECRETKEY, REGION_HW)
     if cloud:
