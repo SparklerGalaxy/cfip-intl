@@ -104,7 +104,9 @@ class DNSUpdater:
                         AFFECT_NUM = min(AFFECT_NUM, 2)
 
                     categorized = self._process_records(ret.get("data", {}).get("records", []))
+                    print(f"update_dns_records categorized: {categorized}")
                     for line in lines:
+                        print(f"update_dns_records line: {line}")
                         self._handle_dns_change(
                             domain, sub_domain, line,
                             categorized.get(line, []),
