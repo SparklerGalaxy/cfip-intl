@@ -1,151 +1,116 @@
-import random
-import time
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 import json
-import requests
-import os
-import traceback
-from dns.qCloud import QcloudApiv3
-from dns.aliyun import AliApi
-from dns.huawei import HuaWeiApi
-import sys
+import logging
+from alibabacloud_alidns20150109.client import Client as AlidnsClient
+from alibabacloud_credentials.client import Client as CredClient
+from alibabacloud_credentials.models import Config as CreConfig
+from alibabacloud_tea_openapi import models as open_api_models
+from alibabacloud_alidns20150109 import models as dns_models
+from alibabacloud_tea_util.client import Client as UtilClient
 
-try:
-    DOMAINS = json.loads(os.environ["DOMAINS"])
-    SECRETID = os.environ["SECRETID"]
-    SECRETKEY = os.environ["SECRETKEY"]
-except KeyError as e:
-    print(f"Missing required environment variable: {e}")
-    sys.exit(1)
+# 配置日志和常量
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+LINE_MAPPING = {"电信": "telecom", "联通": "unicom", "移动": "mobile", "境外": "oversea", "默认": "default"}
 
-AFFECT_NUM = 2
-DNS_SERVER = 2
-REGION_HW = 'cn-east-3'
-TTL = 600
-RECORD_TYPE = sys.argv[1] if len(sys.argv) >= 2 else "A"
-
-class CloudFlareIPManager:
-    @staticmethod
-    def get_optimized_ips():
+class AliDNSManager:
+    def __init__(self, access_id, secret_key):
+        self.access_id = access_id
+        self.secret_key = secret_key
+        self.client = self._create_client()
+    
+    def _create_client(self) -> AlidnsClient:
+        """创建阿里云DNS客户端[2](@ref)"""
         try:
-            requests.get('https://cf.vvhan.com/', headers={'Content-Type': 'text/html'})
+            cred_config = CreConfig(
+                type='access_key',
+                access_key_id=self.access_id,
+                access_key_secret=self.secret_key
+            )
+            dns_config = open_api_models.Config(
+                credential=CredClient(cred_config),
+                endpoint='alidns.cn-hongkong.aliyuncs.com'
+            )
+            return AlidnsClient(dns_config)
+        except Exception as e:
+            logging.error(f"客户端创建失败: {str(e)}")
+            raise
 
-            response = requests.get('https://api.vvhan.com/tool/cf_ip', headers={'Content-Type': 'application/json'})
-            
-            if response.status_code != 200 or not response.json().get("success"):
-                return None
-            
-            ip_type = "v4" if RECORD_TYPE == "A" else "v6"
-            data = response.json()["data"][ip_type]
-            
-            ips = {}
-            for carrier in ["CM", "CU", "CT"]:
-                if carrier in data:
-                    sorted_ips = sorted(data[carrier], key=lambda x: (-x["speed"], x["latency"]))
-                    ips[carrier] = [{"ip": ip["ip"]} for ip in sorted_ips[:3]]
-            result = {"info": ips}
-            print(f"Returning optimized IPs: {result}")
-            return result
-        except Exception:
-            return None
+    def _map_line(self, line):
+        """线路名称中英文映射[3](@ref)"""
+        return LINE_MAPPING.get(line, line)
 
-class DNSUpdater:
-    def __init__(self, cloud):
-        self.cloud = cloud
-        self.lines_map = {"CM": "移动", "CU": "联通", "CT": "电信", "AB": "境外", "DEF": "默认"}
-
-    def _process_records(self, records):
-        categorized = {"CM": [], "CU": [], "CT": [], "AB": [], "DEF": []}
-        for record in records:
-            line = record["line"]
-            # print(f"_process_records Retrieved records: {record}")
-            if line in self.lines_map.values():
-                line_key = next(k for k, v in self.lines_map.items() if v == line)
-                categorized[line_key].append({
-                    "recordId": record["id"],
-                    "value": record["Value"]
-                })
-        return categorized
-
-    #    self._handle_dns_change(domain, sub_domain, line, categorized.get(line, []), cf_ips["info"].get(line, []).copy())
-    def _handle_dns_change(self, domain, sub_domain, line_key, current_records, candidate_ips):
-        line_name = self.lines_map[line_key]
-        create_num = AFFECT_NUM - len(current_records)
-        print(f"_handle_dns_change called with: domain={domain}, sub_domain={sub_domain}, line_key={line_key}, current_records={current_records}, candidate_ips={candidate_ips}, create_num={create_num}")
-
-        used_ips = set(r["value"] for r in current_records)
-        new_ips = []
-
-        # ================= 新增逻辑 =================
-        if create_num > 0:
-            while create_num > 0 and candidate_ips:
-                cf_ip = candidate_ips.pop(random.randint(0, len(candidate_ips)-1))["ip"]
-                if cf_ip not in used_ips:
-                    new_ips.append(cf_ip)
-                    used_ips.add(cf_ip)
-                    create_num -= 1
-            
-            for ip in new_ips:
-                ret = self.cloud.create_record(domain, sub_domain, ip, RECORD_TYPE, line_name, TTL)
-                self._log_result(ret, domain, sub_domain, line_name, ip, "CREATE")
-
-        # ================= 修改逻辑 =================
-        for record in current_records:
-            if not candidate_ips:
-                break
-                
-            cf_ip = None
-            while candidate_ips:
-                candidate = candidate_ips.pop(random.randint(0, len(candidate_ips)-1))
-                if candidate["ip"] not in used_ips:
-                    cf_ip = candidate["ip"]
-                    used_ips.add(cf_ip)
-                    break
-            
-            if cf_ip:
-                ret = self.cloud.change_record(
-                    domain, record["recordId"], sub_domain, cf_ip, RECORD_TYPE, line_name, TTL
-                )
-                self._log_result(ret, domain, sub_domain, line_name, cf_ip, "CHANGE")
-
-    def _log_result(self, ret, domain, sub_domain, line, value, action):
-        status = "SUCCESS" if DNS_SERVER != 1 or ret.get("code", 1) == 0 else "ERROR"
-        message = ret.get("message", "") if status == "ERROR" else ""
-        print(f"{action} DNS {status}: ----Time: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}----DOMAIN: {domain}----SUBDOMAIN: {sub_domain}----RECORDLINE: {line}----VALUE: {value}{f'----MESSAGE: {message}' if message else ''}")
-
-    def update_dns_records(self):
+    def delete_record(self, record_id):
+        """删除DNS记录[6](@ref)"""
+        request = dns_models.DeleteDomainRecordRequest(record_id=record_id)
         try:
-            cf_ips = CloudFlareIPManager.get_optimized_ips()
-            if not cf_ips:
-                return
-            for domain, sub_domains in DOMAINS.items():
-                for sub_domain, lines in sub_domains.items():
-                    ret = self.cloud.get_record(domain, 100, sub_domain, RECORD_TYPE)
+            response = self.client.delete_domain_record(request)
+            logging.info(f"记录 {record_id} 删除成功")
+            return response.to_map()
+        except Exception as e:
+            logging.error(f"记录删除失败: {str(e)}")
+            raise
 
-                    #print(f"Retrieved records: {ret.get('data', {}).get('records', [])}")
-                    
-                    if DNS_SERVER == 1 and "Free" in ret["data"]["domain"]["grade"]:
-                        global AFFECT_NUM
-                        AFFECT_NUM = min(AFFECT_NUM, 2)
+    def get_records(self, domain, sub_domain, record_type, page_size=100):
+        """获取DNS记录列表[4](@ref)"""
+        request = dns_models.DescribeDomainRecordsRequest(
+            domain_name=domain,
+            page_size=page_size,
+            rrkey_word=sub_domain,
+            type=record_type
+        )
+        try:
+            response = self.client.describe_domain_records(request)
+            data = response.to_map()['body']['DomainRecords']
+            records = data['Record']
+            
+            # 转换记录格式
+            return [{
+                'id': record['RecordId'],
+                'line': record['Line'].replace('telecom', '电信')
+                                      .replace('unicom', '联通')
+                                      .replace('mobile', '移动')
+                                      .replace('oversea', '境外')
+                                      .replace('default', '默认'),
+                'value': record['Value']
+            } for record in records]
+        except Exception as e:
+            logging.error(f"记录获取失败: {str(e)}")
+            raise
 
-                    categorized = self._process_records(ret.get("data", {}).get("records", []))
-                    print(f"update_dns_records categorized: {categorized}")
-                    for line in lines:
-                        print(f"update_dns_records line: {line}")
-                        self._handle_dns_change(domain, sub_domain, line, categorized.get(line, []), cf_ips["info"].get(line, []).copy())
-        except Exception:
-            print(f"CHANGE DNS ERROR: ----Time: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}----MESSAGE: {traceback.format_exc()}")
+    def create_record(self, domain, sub_domain, value, record_type, line, ttl=600):
+        """创建DNS记录[5](@ref)"""
+        request = dns_models.AddDomainRecordRequest(
+            domain_name=domain,
+            rr=sub_domain,
+            type=record_type,
+            value=value,
+            line=self._map_line(line),
+            ttl=ttl
+        )
+        try:
+            response = self.client.add_domain_record(request)
+            record_id = response.body.record_id
+            logging.info(f"记录创建成功: ID={record_id}")
+            return response.to_map()
+        except Exception as e:
+            logging.error(f"记录创建失败: {str(e)}")
+            raise
 
-def main():
-    cloud = None
-    if DNS_SERVER == 1:
-        cloud = QcloudApiv3(SECRETID, SECRETKEY)
-    elif DNS_SERVER == 2:
-        cloud = AliApi(SECRETID, SECRETKEY)
-    elif DNS_SERVER == 3:
-        cloud = HuaWeiApi(SECRETID, SECRETKEY, REGION_HW)
-    if cloud:
-        updater = DNSUpdater(cloud)
-        updater.update_dns_records()
-
-if __name__ == '__main__':
-    main()
+    def update_record(self, record_id, sub_domain, value, record_type, line, ttl=600):
+        """更新DNS记录[8](@ref)"""
+        request = dns_models.UpdateDomainRecordRequest(
+            record_id=record_id,
+            rr=sub_domain,
+            type=record_type,
+            value=value,
+            line=self._map_line(line),
+            ttl=ttl
+        )
+        try:
+            response = self.client.update_domain_record(request)
+            logging.info(f"记录 {record_id} 更新成功")
+            return response.to_map()
+        except Exception as e:
+            logging.error(f"记录更新失败: {str(e)}")
+            raise
